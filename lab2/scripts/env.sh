@@ -1,6 +1,7 @@
 #!/bin/bash
 source /opt/ros/humble/setup.bash
 export GZ_VERSION=harmonic
+unset GZ_SIM_RESOURCE_PATH GZ_SIM_SYSTEM_PLUGIN_PATH
 source "$HOME/ros2_ws/install/setup.bash"
 export PATH="$PATH:$HOME/.local/bin"
 
