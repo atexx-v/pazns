@@ -3,7 +3,15 @@ QUIET="${1:-}"
 RUN="$HOME/lab2/run"
 log() { [ "$QUIET" = quiet ] || echo "$@"; }
 
-NAMES="arducopter micro_ros_agent parameter_bridge gz ruby"
+# comm обрізається до 15 символів, тому шукаємо за командним рядком
+PATTERNS=("ardupilot_gz_bringup" "robot_state_publisher" "topic_tools/relay" \
+          "ros_gz_bridge/parameter_bridge" "ros_gz_sim/create" "micro_ros_agent" \
+          "arducopter --model" "mavproxy.py" "gz sim")
+
+kill_all() {
+    for p in "${PATTERNS[@]}"; do pkill "$1" -f -- "$p" 2>/dev/null; done
+    pkill "$1" -x ruby 2>/dev/null
+}
 
 if [ -f "$RUN/sim.pid" ]; then
     log "SIGINT для ros2 launch (PID $(cat "$RUN/sim.pid"))"
@@ -13,13 +21,13 @@ if [ -f "$RUN/sim.pid" ]; then
 fi
 
 # після SIGINT launch лишає процеси, які тримають порти 5760 і 2019
-for n in $NAMES; do pkill -x "$n" 2>/dev/null; done
-pkill -f "mavproxy.py" 2>/dev/null
-sleep 2
+kill_all -TERM
+sleep 3
+kill_all -KILL
 
-for n in $NAMES; do pkill -9 -x "$n" 2>/dev/null; done
-pkill -9 -f "mavproxy.py" 2>/dev/null
-rm -f "$RUN"/*.pid
+# файли вбитих процесів Fast DDS і ROS 2 накопичуються й плутають наступні запуски
+rm -f /dev/shm/fastrtps_* /dev/shm/sem.fastrtps_* /tmp/launch_params_* "$RUN"/*.pid
+( source /opt/ros/humble/setup.bash; ros2 daemon stop ) > /dev/null 2>&1
 
 log "Симуляцію зупинено."
 exit 0

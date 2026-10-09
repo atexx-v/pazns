@@ -1,9 +1,12 @@
 #!/bin/bash
+# у довго відкритому терміналі лишаються шляхи інших просторів (~/ardu_ws, старий ardupilot_gazebo)
+unset AMENT_PREFIX_PATH COLCON_PREFIX_PATH CMAKE_PREFIX_PATH PYTHONPATH LD_LIBRARY_PATH \
+      GZ_SIM_RESOURCE_PATH GZ_SIM_SYSTEM_PLUGIN_PATH SDF_PATH
 source /opt/ros/humble/setup.bash
 export GZ_VERSION=harmonic
-# шляхи зі старого ardupilot_gazebo з ~/.bashrc конфліктують з моделями ros2_ws
-unset GZ_SIM_RESOURCE_PATH GZ_SIM_SYSTEM_PLUGIN_PATH
 source "$HOME/ros2_ws/install/setup.bash"
+# sdformat_urdf шукає package://ardupilot_gazebo/... у каталогах з SDF_PATH, тому потрібен батьківський каталог пакета
+export GZ_SIM_RESOURCE_PATH="$GZ_SIM_RESOURCE_PATH:$HOME/ros2_ws/install/ardupilot_gazebo/share"
 # mavproxy.py встановлений через pip --user
 export PATH="$PATH:$HOME/.local/bin"
 
