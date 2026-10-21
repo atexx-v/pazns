@@ -35,8 +35,6 @@ curl -L -C - --retry 20 -o QGroundControl-aarch64.AppImage \
 `glibc239`: QGC v5.1.5 зібрано під glibc >= 2.38, а у VM Ubuntu 22.04 (glibc 2.35). QGC запускається через
 завантажувач `ld-linux` цих бібліотек без sudo і без зміни системних.
 
-З Mac скрипти копіюються у VM командою `./deploy.sh`.
-
 ## Запуск
 
 | Дія | Команда (у VM) |
@@ -95,7 +93,6 @@ python3 tools/analyze_tlog.py "<файл>.tlog" results/telemetry/tlog_summary.j
 
 ```
 variant.env           параметри варіанта і перерахунок швидкості
-deploy.sh             копіювання скриптів на VM
 config/               додаткові початкові параметри SITL (DDS_ENABLE 0)
 gui/                  конфіг вікна Gazebo
 scripts/              запуск і зупинка Gazebo+SITL, QGC, вікна Gazebo, знімки екрана
