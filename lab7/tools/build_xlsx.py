@@ -4,12 +4,13 @@ import math
 import os
 
 import xlsxwriter
-from xlsxwriter.utility import xl_col_to_name
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(ROOT, "results", "telemetry", "2026-10-21 21-41-37 vehicle1.csv")
 OUT = os.path.join(ROOT, "lab7_analysis_vishnevskiy_ir33.xlsx")
 EPOCH = datetime.datetime(1899, 12, 30)
+SHEET = "Аналіз"
+FIRST = 5
 
 
 def read_env(path):
@@ -52,274 +53,277 @@ with open(CSV_PATH, encoding="utf-8") as f:
     raw = list(csv.reader(f))
 header, body = raw[0], raw[1:]
 col = {name: i for i, name in enumerate(header)}
-need = ["Timestamp", "flightTime", "altitudeRelative", "groundSpeed", "airSpeed", "roll", "gps.lat", "gps.lon",
-        "climbRate", "distanceToHome", "flightDistance"]
-letter = {n: xl_col_to_name(col[n]) for n in need}
 
 stamps = [datetime.datetime.strptime(r[col["Timestamp"]], "%Y-%m-%d %H:%M:%S.%f") for r in body]
 fsec = [hms(r[col["flightTime"]]) for r in body]
-alt = [float(r[col["altitudeRelative"]]) for r in body]
+alt_all = [float(r[col["altitudeRelative"]]) for r in body]
 
 i0 = 0
 for i in range(1, len(body)):
     if fsec[i] < fsec[i - 1]:
         i0 = i
-peak = max(range(i0, len(body)), key=lambda i: alt[i])
+peak = max(range(i0, len(body)), key=lambda i: alt_all[i])
 final_f = max(fsec[i0:])
 i_last = next(i for i in range(peak, len(body)) if fsec[i] == final_f)
 N = i_last - i0 + 1
-LAST = N + 1
+LAST = FIRST + N - 1
+
+
+def num(name, k):
+    return float(body[i0 + k][col[name]])
+
+
+t_s = [(stamps[i0 + k] - stamps[i0]).total_seconds() for k in range(N)]
+alt = [num("altitudeRelative", k) for k in range(N)]
+gs = [num("groundSpeed", k) for k in range(N)]
+asp = [num("airSpeed", k) for k in range(N)]
+roll = [num("roll", k) for k in range(N)]
+lat = [num("gps.lat", k) for k in range(N)]
+lon = [num("gps.lon", k) for k in range(N)]
+t_take = min(t_s[k] for k in range(N) if alt[k] >= 0.99 * H)
+cruise = [t_s[k] for k in range(N) if gs[k] >= 0.5 and alt[k] >= 0.95 * H]
+t_c0, t_c1, t_end = min(cruise), max(cruise) + 1, max(t_s)
 
 wb = xlsxwriter.Workbook(OUT)
-base = {"font_name": "Arial", "font_size": 11}
-fmt = {
-    "plain": wb.add_format(base),
-    "title": wb.add_format(dict(base, bold=True, font_size=14)),
-    "bold": wb.add_format(dict(base, bold=True)),
-    "head": wb.add_format(dict(base, bold=True, bg_color="#D9D9D9", border=1, text_wrap=True, valign="vcenter")),
-    "cell": wb.add_format(dict(base, border=1, text_wrap=True, valign="vcenter")),
-    "n0": wb.add_format(dict(base, border=1, num_format="0", valign="vcenter")),
-    "n1": wb.add_format(dict(base, border=1, num_format="0.0", valign="vcenter")),
-    "n2": wb.add_format(dict(base, border=1, num_format="0.00", valign="vcenter")),
-    "n7": wb.add_format(dict(base, num_format="0.0000000")),
-    "dt": wb.add_format(dict(base, num_format="yyyy-mm-dd hh:mm:ss.000")),
-    "tm": wb.add_format(dict(base, num_format="[h]:mm:ss")),
-    "dec1": wb.add_format(dict(base, num_format="0.0")),
-    "dec2": wb.add_format(dict(base, num_format="0.00")),
-    "note": wb.add_format(dict(base, text_wrap=True, valign="top")),
+GRID = "#BFBFBF"
+base = {"font_name": "Arial", "font_size": 11, "valign": "vcenter"}
+
+
+def fmt(**kw):
+    return wb.add_format(dict(base, **kw))
+
+
+fm = {
+    "title": fmt(bold=True, font_size=16),
+    "sub": fmt(font_color="#404040"),
+    "section": fmt(bold=True, font_size=12, bottom=1),
+    "head": fmt(bold=True, bg_color="#D9D9D9", border=1, border_color=GRID),
+    "head_c": fmt(bold=True, bg_color="#D9D9D9", border=1, border_color=GRID, align="center"),
+    "label": fmt(border=1, border_color=GRID),
+    "src": fmt(border=1, border_color=GRID, font_color="#404040"),
+    "txt_c": fmt(border=1, border_color=GRID, align="center"),
+    "n0": fmt(border=1, border_color=GRID, align="center", num_format="0"),
+    "n1": fmt(border=1, border_color=GRID, align="center", num_format="0.0"),
+    "n2": fmt(border=1, border_color=GRID, align="center", num_format="0.00"),
+    "n7": fmt(border=1, border_color=GRID, align="center", num_format="0.0000000"),
+    "time": fmt(border=1, border_color=GRID, align="center", num_format="hh:mm:ss"),
+    "d_dt": fmt(border=1, border_color=GRID, num_format="yyyy-mm-dd hh:mm:ss.000"),
+    "d_tm": fmt(border=1, border_color=GRID, align="center", num_format="[h]:mm:ss"),
+    "d_i": fmt(border=1, border_color=GRID, align="center", num_format="0"),
+    "d_1": fmt(border=1, border_color=GRID, align="center", num_format="0.0"),
+    "d_2": fmt(border=1, border_color=GRID, align="center", num_format="0.00"),
+    "d_7": fmt(border=1, border_color=GRID, align="center", num_format="0.0000000"),
+    "d_t": fmt(border=1, border_color=GRID),
+    "plain": fmt(),
+    "note": fmt(text_wrap=True, valign="top"),
+    "note_b": fmt(bold=True, text_wrap=True, valign="top"),
 }
 
-ws_a = wb.add_worksheet("Аналіз")
-ws_f = wb.add_worksheet("Політ")
-ws_c = wb.add_worksheet("CSV")
+ws = wb.add_worksheet(SHEET)
+wn = wb.add_worksheet("Примітки")
+wc = wb.add_worksheet("CSV")
+ws.hide_gridlines(2)
+wn.hide_gridlines(2)
 
+bold = wb.add_format({"bold": True})
+stamp_fmt = wb.add_format({"num_format": "yyyy-mm-dd hh:mm:ss.000"})
 for j, name in enumerate(header):
-    ws_c.write(0, j, name, fmt["bold"])
+    wc.write(0, j, name, bold)
 for i, row in enumerate(body):
     for j, value in enumerate(row):
         if j == col["Timestamp"]:
-            ws_c.write_datetime(i + 1, j, stamps[i], fmt["dt"])
+            wc.write_datetime(i + 1, j, stamps[i], stamp_fmt)
         else:
             cell = to_cell(value)
             if isinstance(cell, float):
-                ws_c.write_number(i + 1, j, cell)
+                wc.write_number(i + 1, j, cell)
             else:
-                ws_c.write_string(i + 1, j, cell)
-ws_c.freeze_panes(1, 1)
-ws_c.set_column(col["Timestamp"], col["Timestamp"], 24)
+                wc.write_string(i + 1, j, cell)
+wc.freeze_panes(1, 1)
+wc.set_column(col["Timestamp"], col["Timestamp"], 24)
 
-fheads = ["Timestamp", "flightTime", "altitudeRelative, м", "groundSpeed, м/с", "airSpeed, м/с", "roll, град",
-          "gps.lat", "gps.lon", "climbRate, м/с", "distanceToHome, м", "flightDistance, м", "t, с",
-          "висота ≥ 0,99·H", "t горизонтального польоту, с", "Етап"]
-for j, h in enumerate(fheads):
-    ws_f.write(0, j, h, fmt["head"])
-ws_f.set_row(0, 45)
-ws_f.set_column(0, 0, 24)
-ws_f.set_column(1, 14, 15)
-ws_f.freeze_panes(1, 0)
+widths = {"A": 46, "B": 30, "C": 12, "D": 74, "E": 3,
+          "F": 10, "G": 24, "H": 12, "I": 20, "J": 17, "K": 14, "L": 11, "M": 13, "N": 13, "O": 15,
+          "P": 18, "Q": 18, "R": 8, "S": 18, "T": 18, "U": 22, "V": 3, "W": 10, "X": 10, "Y": 42}
+for letter, w in widths.items():
+    ws.set_column("%s:%s" % (letter, letter), w)
 
-t0 = stamps[i0]
-tvals = [(stamps[i0 + k] - t0).total_seconds() for k in range(N)]
-t_take = next(tvals[k] for k in range(N) if alt[i0 + k] >= 0.99 * H)
-cruise_t = [tvals[k] for k in range(N)
-            if float(body[i0 + k][col["groundSpeed"]]) >= 0.5 and alt[i0 + k] >= 0.95 * H]
-t_c0, t_c1, t_end = min(cruise_t), max(cruise_t) + 1, max(tvals)
 
-dest_col = {2: "altitudeRelative", 3: "groundSpeed", 4: "airSpeed", 5: "roll", 6: "gps.lat", 7: "gps.lon",
-            8: "climbRate", 9: "distanceToHome", 10: "flightDistance"}
-for k in range(N):
-    r = i0 + k + 2
-    n = k + 2
-    row = body[i0 + k]
-    ws_f.write_formula(n - 1, 0, "='CSV'!%s%d" % (letter["Timestamp"], r), fmt["dt"], serial(stamps[i0 + k]))
-    ws_f.write_formula(n - 1, 1, "=TIMEVALUE('CSV'!%s%d)" % (letter["flightTime"], r), fmt["tm"], fsec[i0 + k] / 86400)
-    for c, name in dest_col.items():
-        f_ = fmt["n7"] if name in ("gps.lat", "gps.lon") else fmt["plain"]
-        ws_f.write_formula(n - 1, c, "='CSV'!%s%d" % (letter[name], r), f_, float(row[col[name]]))
-    ws_f.write_formula(n - 1, 11, "=(A%d-$A$2)*86400" % n, fmt["dec1"], tvals[k])
-    flag = 1 if alt[i0 + k] >= 0.99 * H else 0
-    ws_f.write_formula(n - 1, 12, "=IF(C%d>=0.99*'Аналіз'!$B$3,1,0)" % n, fmt["plain"], flag)
-    in_cruise = float(row[col["groundSpeed"]]) >= 0.5 and alt[i0 + k] >= 0.95 * H
-    ws_f.write_formula(n - 1, 13, "=IF(AND(D%d>=0.5,C%d>=0.95*'Аналіз'!$B$3),L%d,\"\")" % (n, n, n), fmt["dec1"],
-                       tvals[k] if in_cruise else "")
-    tk = tvals[k]
-    stage = "Зліт" if tk <= t_take else ("Перехід" if tk < t_c0 else ("Горизонтальний політ" if tk < t_c1 else "Посадка"))
-    ws_f.write_formula(n - 1, 14,
-                       "=IF(L%d<='Аналіз'!$B$11,\"Зліт\",IF(L%d<'Аналіз'!$B$12,\"Перехід\",IF(L%d<'Аналіз'!$B$13,\"Горизонтальний політ\",\"Посадка\")))" % (n, n, n),
-                       fmt["plain"], stage)
+def R(c):
+    return "$%s$%d:$%s$%d" % (c, FIRST, c, LAST)
 
-R = "'Політ'!"
-rng = lambda c: "%s$%s$2:$%s$%d" % (R, c, c, LAST)
 
-ws_a.set_column(0, 0, 44)
-ws_a.set_column(1, 1, 34)
-ws_a.set_column(2, 2, 14)
-ws_a.set_column(3, 3, 52)
-ws_a.write(0, 0, "Лабораторна робота №7, варіант 5. Аналіз телеметрії QGroundControl (CSV)", fmt["title"])
-ws_a.write(1, 0, "Дані: аркуш «CSV» (повний файл QGC). Політ виділено на аркуші «Політ» (рядки CSV %d–%d), усі значення нижче обчислено формулами."
-           % (i0 + 2, i_last + 2), fmt["plain"])
+ws.write("A1", "Лабораторна робота №7, варіант 5. Аналіз телеметрії QGroundControl", fm["title"])
+ws.write("A2", "Дані польоту – у стовпцях F:U, вихідний файл QGroundControl – на аркуші «CSV», пояснення вибору колонки часу – на аркуші «Примітки».", fm["sub"])
 
+
+def section(row, text):
+    ws.merge_range(row - 1, 0, row - 1, 3, text, fm["section"])
+
+
+def table_head(row, labels):
+    for j, text in enumerate(labels):
+        ws.write(row - 1, j, text, fm["head"] if j in (0, 3) else fm["head_c"])
+
+
+section(4, "Параметри варіанта")
+table_head(5, ["Параметр", "Значення", "Одиниця", "Джерело значення"])
 params = [
-    (3, "Висота зльоту H", H, "м", "Таблиця 7.6, варіант 5"),
-    (4, "Горизонтальна швидкість V", V, "м/с", "Таблиця 7.6, варіант 5"),
-    (5, "Цільова точка, широта", LAT_T, "°", "Таблиця 7.6, варіант 5"),
-    (6, "Цільова точка, довгота", LON_T, "°", "Таблиця 7.6, варіант 5"),
+    (6, "Висота зльоту H", H, "м", "n1", "Таблиця 7.6 методички, варіант 5"),
+    (7, "Горизонтальна швидкість V", V, "м/с", "n1", "Таблиця 7.6 методички, варіант 5"),
+    (8, "Цільова точка, широта", LAT_T, "°", "n7", "Таблиця 7.6 методички, варіант 5"),
+    (9, "Цільова точка, довгота", LON_T, "°", "n7", "Таблиця 7.6 методички, варіант 5"),
 ]
-for r, label, val, unit, source in params:
-    ws_a.write(r - 1, 0, label, fmt["cell"])
-    ws_a.write_number(r - 1, 1, val, fmt["n7"] if r in (5, 6) else fmt["n1"])
-    ws_a.write(r - 1, 2, unit, fmt["cell"])
-    ws_a.write(r - 1, 3, source, fmt["cell"])
-ws_a.write(6, 0, "WPNAV_SPEED = 100 · V", fmt["cell"])
-ws_a.write_formula(6, 1, "=100*B4", fmt["n0"], 100 * V)
-ws_a.write(6, 2, "см/с", fmt["cell"])
-ws_a.write(6, 3, "Формула методички (у ArduCopter 4.8 параметра немає)", fmt["cell"])
-ws_a.write(7, 0, "WP_SPD (замінник WPNAV_SPEED)", fmt["cell"])
-ws_a.write_formula(7, 1, "=B4", fmt["n1"], V)
-ws_a.write(7, 2, "м/с", fmt["cell"])
-ws_a.write(7, 3, "Параметр, який задано в QGroundControl", fmt["cell"])
+for r, label, val, unit, nf, source in params:
+    ws.write(r - 1, 0, label, fm["label"])
+    ws.write_number(r - 1, 1, val, fm[nf])
+    ws.write(r - 1, 2, unit, fm["txt_c"])
+    ws.write(r - 1, 3, source, fm["src"])
+ws.write(9, 0, "WPNAV_SPEED = 100 · V", fm["label"])
+ws.write_formula(9, 1, "=100*B7", fm["n0"], 100 * V)
+ws.write(9, 2, "см/с", fm["txt_c"])
+ws.write(9, 3, "Формула методички; у ArduCopter V4.8.0-dev такого параметра немає", fm["src"])
+ws.write(10, 0, "WP_SPD (замінник WPNAV_SPEED)", fm["label"])
+ws.write_formula(10, 1, "=B7", fm["n1"], V)
+ws.write(10, 2, "м/с", fm["txt_c"])
+ws.write(10, 3, "Параметр, який задано в QGroundControl", fm["src"])
 
-ws_a.write(9, 0, "Межі етапів польоту (за даними)", fmt["bold"])
+section(13, "Межі етапів польоту")
+table_head(14, ["Етап", "Час від початку польоту", "Одиниця", "Як визначено"])
 bounds = [
-    (11, "Кінець зльоту (висота ≥ 0,99·H)", "=INDEX(%s,MATCH(1,%s,0))" % (rng("L"), rng("M")), t_take),
-    (12, "Початок горизонтального польоту", "=MIN(%s)" % rng("N"), t_c0),
-    (13, "Кінець горизонтального польоту", "=MAX(%s)+1" % rng("N"), t_c1),
-    (14, "Кінець польоту (disarm)", "=MAX(%s)" % rng("L"), t_end),
+    (15, "Кінець зльоту", "=MIN(%s)" % R("S"), t_take, "перший момент, коли altitudeRelative ≥ 0,99·H"),
+    (16, "Початок горизонтального польоту", "=MIN(%s)" % R("T"), t_c0, "groundSpeed ≥ 0,5 м/с на висоті ≥ 0,95·H"),
+    (17, "Кінець горизонтального польоту", "=MAX(%s)+1" % R("T"), t_c1, "остання секунда з groundSpeed ≥ 0,5 м/с на висоті"),
+    (18, "Кінець польоту (disarm)", "=MAX(%s)" % R("R"), t_end, "остання секунда польоту, flightTime припиняє зростати"),
 ]
-for r, label, formula, val in bounds:
-    ws_a.write(r - 1, 0, label, fmt["cell"])
-    ws_a.write_formula(r - 1, 1, formula, fmt["n1"], val)
-    ws_a.write(r - 1, 2, "с", fmt["cell"])
-    ws_a.write(r - 1, 3, "Timestamp, altitudeRelative, groundSpeed", fmt["cell"])
+for r, label, formula, val, how in bounds:
+    ws.write(r - 1, 0, label, fm["label"])
+    ws.write_formula(r - 1, 1, formula, fm["n1"], val)
+    ws.write(r - 1, 2, "с", fm["txt_c"])
+    ws.write(r - 1, 3, how, fm["src"])
 
-ws_a.write(15, 0, "Таблиця 7.4 – Результати аналізу телеметрії", fmt["bold"])
-for j, h in enumerate(["Показник", "Значення", "Одиниця", "Джерело значення (стовпець CSV / повідомлення MAVLink)"]):
-    ws_a.write(16, j, h, fmt["head"])
-
-alts = [float(body[i0 + k][col["altitudeRelative"]]) for k in range(N)]
-gs = [float(body[i0 + k][col["groundSpeed"]]) for k in range(N)]
-asp = [float(body[i0 + k][col["airSpeed"]]) for k in range(N)]
-roll = [float(body[i0 + k][col["roll"]]) for k in range(N)]
-lat = [float(body[i0 + k][col["gps.lat"]]) for k in range(N)]
-lon = [float(body[i0 + k][col["gps.lon"]]) for k in range(N)]
-dh = float(body[i_last][col["distanceToHome"]])
-fd = float(body[i_last][col["flightDistance"]])
+section(20, "Таблиця 7.4 – Результати аналізу телеметрії")
+table_head(21, ["Показник", "Значення", "Одиниця", "Джерело значення (стовпець CSV або повідомлення MAVLink)"])
 err = haversine(lat[-1], lon[-1], LAT_T, LON_T)
-
 rows74 = [
-    ("Час зльоту (arm, початок набору висоти)", '=TEXT(%sA2,"hh:mm:ss")' % R, stamps[i0].strftime("%H:%M:%S"), "UTC",
-     "Timestamp, перший рядок польоту", fmt["cell"]),
-    ("Тривалість набору висоти H", "=B11", t_take, "с", "Timestamp, altitudeRelative ≥ 0,99·H", fmt["n0"]),
-    ("Найбільша висота", "=MAX(%s)" % rng("C"), max(alts), "м", "altitudeRelative", fmt["n1"]),
-    ("Найбільша швидкість (наземна)", "=MAX(%s)" % rng("D"), max(gs), "м/с", "groundSpeed", fmt["n1"]),
-    ("Найбільша швидкість (повітряна)", "=MAX(%s)" % rng("E"), max(asp), "м/с", "airSpeed (оцінка автопілота)", fmt["n1"]),
-    ("Час польоту", "=%sB%d*86400" % (R, LAST), final_f, "с", "flightTime (лічильник QGC, останнє значення)", fmt["n0"]),
-    ("Початкова координата", '=TEXT(%sG2,"0.0000000")&"; "&TEXT(%sH2,"0.0000000")' % (R, R),
-     "%.7f; %.7f" % (lat[0], lon[0]), "°", "gps.lat, gps.lon (перший рядок польоту)", fmt["cell"]),
-    ("Кінцева координата", '=TEXT(%sG%d,"0.0000000")&"; "&TEXT(%sH%d,"0.0000000")' % (R, LAST, R, LAST),
-     "%.7f; %.7f" % (lat[-1], lon[-1]), "°", "gps.lat, gps.lon (останній рядок польоту)", fmt["cell"]),
-    ("Максимальний roll", "=MAX(MAX(%s),-MIN(%s))" % (rng("F"), rng("F")), max(max(roll), -min(roll)), "град", "roll", fmt["n1"]),
+    ("Час зльоту (arm, початок набору висоти)", "=G%d" % FIRST, serial(stamps[i0]), "time", "UTC", "Timestamp, перший рядок польоту"),
+    ("Тривалість набору висоти H", "=B15", t_take, "n0", "с", "Timestamp, altitudeRelative ≥ 0,99·H"),
+    ("Найбільша висота", "=MAX(%s)" % R("I"), max(alt), "n1", "м", "altitudeRelative"),
+    ("Найбільша швидкість (наземна)", "=MAX(%s)" % R("J"), max(gs), "n1", "м/с", "groundSpeed"),
+    ("Найбільша швидкість (повітряна)", "=MAX(%s)" % R("K"), max(asp), "n1", "м/с", "airSpeed (оцінка автопілота)"),
+    ("Час польоту", "=ROUND(H%d*86400,0)" % LAST, final_f, "n0", "с", "flightTime (лічильник QGroundControl, останнє значення)"),
+    ("Початкова координата", '=TEXT(M%d,"0.0000000")&"; "&TEXT(N%d,"0.0000000")' % (FIRST, FIRST),
+     "%.7f; %.7f" % (lat[0], lon[0]), "txt_c", "°", "gps.lat, gps.lon (перший рядок польоту)"),
+    ("Кінцева координата", '=TEXT(M%d,"0.0000000")&"; "&TEXT(N%d,"0.0000000")' % (LAST, LAST),
+     "%.7f; %.7f" % (lat[-1], lon[-1]), "txt_c", "°", "gps.lat, gps.lon (останній рядок польоту)"),
+    ("Максимальний roll", "=MAX(MAX(%s),-MIN(%s))" % (R("L"), R("L")), max(max(roll), -min(roll)), "n1", "град", "roll"),
 ]
-for i, (label, formula, val, unit, source, f_) in enumerate(rows74):
-    r = 17 + i
-    ws_a.write(r, 0, label, fmt["cell"])
-    ws_a.write_formula(r, 1, formula, f_, val)
-    ws_a.write(r, 2, unit, fmt["cell"])
-    ws_a.write(r, 3, source, fmt["cell"])
-r = 17 + len(rows74)
-ws_a.write(r, 0, "Режими польоту", fmt["cell"])
-ws_a.write(r, 1, "Stabilize → Guided → Auto", fmt["cell"])
-ws_a.write(r, 2, "", fmt["cell"])
-ws_a.write(r, 3, ".tlog: HEARTBEAT, custom_mode (0 → 4 → 3); у CSV QGC такого стовпця немає", fmt["cell"])
-ws_a.write(r + 1, 0, "Стан arm до та після місії", fmt["cell"])
-ws_a.write(r + 1, 1, "до: disarmed; у польоті: armed; після: disarmed", fmt["cell"])
-ws_a.write(r + 1, 2, "", fmt["cell"])
-ws_a.write(r + 1, 3, ".tlog: HEARTBEAT, base_mode, біт 128 (armed)", fmt["cell"])
-ws_a.set_row(r + 1, 32)
+for i, (label, formula, val, nf, unit, source) in enumerate(rows74):
+    r = 21 + i
+    ws.write(r, 0, label, fm["label"])
+    ws.write_formula(r, 1, formula, fm[nf], val)
+    ws.write(r, 2, unit, fm["txt_c"])
+    ws.write(r, 3, source, fm["src"])
+r = 21 + len(rows74)
+ws.write(r, 0, "Режими польоту", fm["label"])
+ws.write(r, 1, "Stabilize → Guided → Auto", fm["txt_c"])
+ws.write(r, 2, "", fm["txt_c"])
+ws.write(r, 3, ".tlog: HEARTBEAT, custom_mode (0 → 4 → 3); у CSV такого стовпця немає", fm["src"])
+ws.write(r + 1, 0, "Стан arm до та після місії", fm["label"])
+ws.write(r + 1, 1, "disarmed → armed → disarmed", fm["txt_c"])
+ws.write(r + 1, 2, "", fm["txt_c"])
+ws.write(r + 1, 3, ".tlog: HEARTBEAT, base_mode, біт 128 (armed)", fm["src"])
 
-cmp_row = r + 3
-ws_a.write(cmp_row, 0, "Порівняння заданого з фактичним", fmt["bold"])
-for j, h in enumerate(["Параметр", "Задано", "Фактично", "Відхилення"]):
-    ws_a.write(cmp_row + 1, j, h, fmt["head"])
-hv = ("2*6371000*ASIN(SQRT(SIN(RADIANS(%sG%d-B5)/2)^2+COS(RADIANS(B5))*COS(RADIANS(%sG%d))*SIN(RADIANS(%sH%d-B6)/2)^2))"
-      % (R, LAST, R, LAST, R, LAST))
+c0 = r + 4
+section(c0, "Порівняння заданого з фактичним")
+table_head(c0 + 1, ["Параметр", "Задано", "Фактично", "Відхилення"])
+hv = ("2*6371000*ASIN(SQRT(SIN(RADIANS(M%d-B8)/2)^2+COS(RADIANS(B8))*COS(RADIANS(M%d))*SIN(RADIANS(N%d-B9)/2)^2))"
+      % (LAST, LAST, LAST))
 cmp_rows = [
-    ("Висота, м", "=B3", H, "=B20", max(alts), "=C%d-B%d", fmt["n2"]),
-    ("Швидкість, м/с", "=B4", V, "=B21", max(gs), "=C%d-B%d", fmt["n2"]),
-    ("Відстань від цільової точки, м", "=0", 0.0, "=" + hv, err, "=C%d-B%d", fmt["n2"]),
+    ("Висота, м", "=B6", H, "=B24", max(alt)),
+    ("Швидкість, м/с", "=B7", V, "=B25", max(gs)),
+    ("Відстань до цільової точки, м", "=0", 0.0, "=" + hv, err),
 ]
-for i, (label, f_set, v_set, f_fact, v_fact, f_dev, nf) in enumerate(cmp_rows):
-    rr = cmp_row + 2 + i
-    ws_a.write(rr, 0, label, fmt["cell"])
-    ws_a.write_formula(rr, 1, f_set, nf, v_set)
-    ws_a.write_formula(rr, 2, f_fact, nf, v_fact)
-    ws_a.write_formula(rr, 3, f_dev % (rr + 1, rr + 1), nf, v_fact - v_set)
-rr = cmp_row + 5
-ws_a.write(rr, 0, "Відстань старт → ціль (distanceToHome), м", fmt["cell"])
-ws_a.write_formula(rr, 1, "=%sJ%d" % (R, LAST), fmt["n1"], dh)
-ws_a.write(rr, 2, "", fmt["cell"])
-ws_a.write(rr, 3, "distanceToHome, останній рядок", fmt["cell"])
-ws_a.write(rr + 1, 0, "Пройдена відстань (flightDistance), м", fmt["cell"])
-ws_a.write_formula(rr + 1, 1, "=%sK%d" % (R, LAST), fmt["n1"], fd)
-ws_a.write(rr + 1, 2, "", fmt["cell"])
-ws_a.write(rr + 1, 3, "flightDistance, останній рядок", fmt["cell"])
+for i, (label, f_set, v_set, f_fact, v_fact) in enumerate(cmp_rows):
+    rr = c0 + 1 + i
+    ws.write(rr, 0, label, fm["label"])
+    ws.write_formula(rr, 1, f_set, fm["n2"], v_set)
+    ws.write_formula(rr, 2, f_fact, fm["n2"], v_fact)
+    ws.write_formula(rr, 3, "=C%d-B%d" % (rr + 1, rr + 1), fm["n2"], v_fact - v_set)
+dh, fd = float(body[i_last][col["distanceToHome"]]), float(body[i_last][col["flightDistance"]])
+rr = c0 + 4
+for i, (label, ref, val) in enumerate([("Відстань від точки старту до цілі, м", "=P%d" % LAST, dh),
+                                        ("Пройдена відстань за flightDistance, м", "=Q%d" % LAST, fd)]):
+    ws.write(rr + i, 0, label, fm["label"])
+    ws.write(rr + i, 1, "–", fm["txt_c"])
+    ws.write_formula(rr + i, 2, ref, fm["n1"], val)
+    ws.write(rr + i, 3, "–", fm["txt_c"])
+chart_row = rr + 4
 
-notes_row = rr + 3
-ws_a.write(notes_row, 0, "Примітки", fmt["bold"])
-notes = [
-    "Вісь часу t = Timestamp − Timestamp першого рядка польоту. У CSV є й інші стовпці часу: flightTime (лічильник польоту QGC у форматі "
-    "год:хв:с, крок 1 с, скидається при кожному arm і зупиняється після disarm), clock.currentTime і clock.currentUTCTime (годинник апарата), "
-    "hobbs, timeToHome (оцінка часу повернення). Для осі часу обрано Timestamp (безперервний ряд із дробовою секундою), «Час польоту» взято з flightTime.",
-    "Політ виділено так: початок – останнє скидання flightTime (початок останнього arm), кінець – рядок, де flightTime зупиняється після disarm. "
-    "CSV QGC пишеться безперервно, тому містить і рядки до та після польоту.",
-    "airSpeed у ArduCopter без датчика швидкості повітря є оцінкою автопілота; у симуляції немає вітру, тому вона майже збігається з groundSpeed.",
-    "У CSV QGC немає режиму польоту і стану arm, їх взято з .tlog (повідомлення HEARTBEAT).",
+dheads = ["Рядок CSV", "Timestamp", "flightTime", "altitudeRelative, м", "groundSpeed, м/с", "airSpeed, м/с", "roll, град",
+          "gps.lat", "gps.lon", "climbRate, м/с", "distanceToHome, м", "flightDistance, м", "t, с",
+          "t: висота ≥ 0,99·H", "t: горизонтальний", "Етап польоту"]
+ws.merge_range(2, 5, 2, 20, "Дані польоту (значення скопійовано з аркуша «CSV», рядки %d–%d)" % (i0 + 2, i_last + 2), fm["section"])
+for j, text in enumerate(dheads):
+    ws.write(3, 5 + j, text, fm["head_c"])
+
+data_cols = [("altitudeRelative", "I", "d_1"), ("groundSpeed", "J", "d_1"), ("airSpeed", "K", "d_1"), ("roll", "L", "d_2"),
+             ("gps.lat", "M", "d_7"), ("gps.lon", "N", "d_7"), ("climbRate", "O", "d_1"),
+             ("distanceToHome", "P", "d_1"), ("flightDistance", "Q", "d_1")]
+for k in range(N):
+    row = FIRST - 1 + k
+    n = FIRST + k
+    ws.write_number(row, 5, i0 + k + 2, fm["d_i"])
+    ws.write_datetime(row, 6, stamps[i0 + k], fm["d_dt"])
+    ws.write_number(row, 7, fsec[i0 + k] / 86400, fm["d_tm"])
+    for name, letter, nf in data_cols:
+        ws.write_number(row, ord(letter) - ord("A"), num(name, k), fm[nf])
+    ws.write_formula(row, 17, "=(G%d-$G$%d)*86400" % (n, FIRST), fm["d_1"], t_s[k])
+    up = alt[k] >= 0.99 * H
+    ws.write_formula(row, 18, '=IF(I%d>=0.99*$B$6,R%d,"")' % (n, n), fm["d_1"], t_s[k] if up else "")
+    in_c = gs[k] >= 0.5 and alt[k] >= 0.95 * H
+    ws.write_formula(row, 19, '=IF(AND(J%d>=0.5,I%d>=0.95*$B$6),R%d,"")' % (n, n, n), fm["d_1"], t_s[k] if in_c else "")
+    tk = t_s[k]
+    stage = "Зліт" if tk <= t_take else ("Перехід" if tk < t_c0 else ("Горизонтальний політ" if tk < t_c1 else "Посадка"))
+    ws.write_formula(row, 20, '=IF(R%d<=$B$15,"Зліт",IF(R%d<$B$16,"Перехід",IF(R%d<$B$17,"Горизонтальний політ","Посадка")))' % (n, n, n),
+                     fm["d_t"], stage)
+
+ws.merge_range(2, 22, 2, 24, "Допоміжні лінії для діаграм", fm["section"])
+lines = [
+    ("Задана висота H", ("=0", 0), ("=B6", H), ("=B18", t_end), ("=B6", H)),
+    ("Задана швидкість V", ("=0", 0), ("=B7", V), ("=B18", t_end), ("=B7", V)),
+    ("Кінець зльоту (висота)", ("=B15", t_take), ("=0", 0), ("=B15", t_take), ("=B6*1.1", H * 1.1)),
+    ("Кінець горизонтального польоту (висота)", ("=B17", t_c1), ("=0", 0), ("=B17", t_c1), ("=B6*1.1", H * 1.1)),
+    ("Кінець зльоту (швидкість)", ("=B15", t_take), ("=0", 0), ("=B15", t_take), ("=B7*1.2", V * 1.2)),
+    ("Кінець горизонтального польоту (швидкість)", ("=B17", t_c1), ("=0", 0), ("=B17", t_c1), ("=B7*1.2", V * 1.2)),
 ]
-for i, text in enumerate(notes):
-    ws_a.merge_range(notes_row + 1 + i, 0, notes_row + 1 + i, 3, text, fmt["note"])
-    ws_a.set_row(notes_row + 1 + i, 62 if i == 0 else 34)
-
-hrow = notes_row + len(notes) + 3
-ws_a.write(hrow, 0, "Допоміжні дані для діаграм", fmt["bold"])
-helpers = [
-    ("Задана висота H", "0", 0, "=B3", H, "=B14", t_end, "=B3", H),
-    ("Задана швидкість V", "0", 0, "=B4", V, "=B14", t_end, "=B4", V),
-    ("Кінець зльоту (висота)", "=B11", t_take, "0", 0, "=B11", t_take, "=B3*1.1", H * 1.1),
-    ("Кінець горизонтального польоту (висота)", "=B13", t_c1, "0", 0, "=B13", t_c1, "=B3*1.1", H * 1.1),
-    ("Кінець зльоту (швидкість)", "=B11", t_take, "0", 0, "=B11", t_take, "=B4*1.2", V * 1.2),
-    ("Кінець горизонтального польоту (швидкість)", "=B13", t_c1, "0", 0, "=B13", t_c1, "=B4*1.2", V * 1.2),
-]
-helper_pos = {}
-for i, (label, x1f, x1v, y1f, y1v, x2f, x2v, y2f, y2v) in enumerate(helpers):
-    base_row = hrow + 1 + i * 3
-    ws_a.write(base_row, 0, label, fmt["plain"])
-    for k, (xf, xv, yf, yv) in enumerate([(x1f, x1v, y1f, y1v), (x2f, x2v, y2f, y2v)]):
-        x_formula = xf if xf.startswith("=") else "=" + xf
-        y_formula = yf if yf.startswith("=") else "=" + yf
-        ws_a.write_formula(base_row + 1 + k, 0, x_formula, fmt["dec1"], xv)
-        ws_a.write_formula(base_row + 1 + k, 1, y_formula, fmt["dec1"], yv)
-    helper_pos[i] = base_row + 2
+for i, (label, p1x, p1y, p2x, p2y) in enumerate(lines):
+    r1 = FIRST - 1 + i * 2
+    ws.write(r1, 24, label, fm["plain"])
+    for k, (px, py) in enumerate([(p1x, p1y), (p2x, p2y)]):
+        ws.write_formula(r1 + k, 22, px[0], fm["d_1"], px[1])
+        ws.write_formula(r1 + k, 23, py[0], fm["d_1"], py[1])
 
 
-def aref(i):
-    first = helper_pos[i]
-    return "='Аналіз'!$A$%d:$A$%d" % (first, first + 1), "='Аналіз'!$B$%d:$B$%d" % (first, first + 1)
+def line_ref(i):
+    r1 = FIRST + i * 2
+    return "='%s'!$W$%d:$W$%d" % (SHEET, r1, r1 + 1), "='%s'!$X$%d:$X$%d" % (SHEET, r1, r1 + 1)
 
 
 def chart(title, ycol, ylabel, set_idx, bound_idx, color, line_label, cell):
     ch = wb.add_chart({"type": "scatter", "subtype": "straight_with_markers"})
     ch.add_series({
         "name": title,
-        "categories": "='Політ'!$L$2:$L$%d" % LAST,
-        "values": "='Політ'!$%s$2:$%s$%d" % (ycol, ycol, LAST),
+        "categories": "='%s'!$R$%d:$R$%d" % (SHEET, FIRST, LAST),
+        "values": "='%s'!$%s$%d:$%s$%d" % (SHEET, ycol, FIRST, ycol, LAST),
         "line": {"color": color, "width": 2.0},
         "marker": {"type": "circle", "size": 4, "fill": {"color": color}, "border": {"color": color}},
     })
-    x, y = aref(set_idx)
+    x, y = line_ref(set_idx)
     ch.add_series({"name": line_label, "categories": x, "values": y,
                    "line": {"color": "#555555", "width": 1.25, "dash_type": "dash"}, "marker": {"type": "none"}})
     for idx, label in zip(bound_idx, ["Кінець зльоту", "Кінець горизонтального польоту"]):
-        x, y = aref(idx)
+        x, y = line_ref(idx)
         ch.add_series({"name": label, "categories": x, "values": y,
                        "line": {"color": "#9e9e9e", "width": 1.0, "dash_type": "round_dot"}, "marker": {"type": "none"}})
     ch.set_title({"name": title + " від часу", "name_font": {"name": "Arial", "size": 12}})
@@ -327,18 +331,46 @@ def chart(title, ycol, ylabel, set_idx, bound_idx, color, line_label, cell):
                    "major_gridlines": {"visible": True, "line": {"color": "#dddddd"}}})
     ch.set_y_axis({"name": ylabel, "min": 0, "major_gridlines": {"visible": True, "line": {"color": "#dddddd"}}})
     ch.set_legend({"position": "bottom"})
-    ch.set_size({"width": 760, "height": 340})
-    ws_a.insert_chart(cell, ch)
+    ch.set_size({"width": 780, "height": 340})
+    ws.insert_chart(cell, ch)
 
 
-chart("Висота", "C", "Висота відносно точки старту, м", 0, (2, 3), "#1f5fa8", "Задана висота H", "F3")
-chart("Повітряна швидкість", "E", "Повітряна швидкість, м/с", 1, (4, 5), "#b3472d", "Задана швидкість V", "F21")
-chart("Наземна швидкість", "D", "Наземна швидкість, м/с", 1, (4, 5), "#2e7d32", "Задана швидкість V", "F39")
+chart("Висота", "I", "Висота відносно точки старту, м", 0, (2, 3), "#1f5fa8", "Задана висота H", "A%d" % chart_row)
+chart("Повітряна швидкість", "K", "Повітряна швидкість, м/с", 1, (4, 5), "#b3472d", "Задана швидкість V", "A%d" % (chart_row + 19))
+chart("Наземна швидкість", "J", "Наземна швидкість, м/с", 1, (4, 5), "#2e7d32", "Задана швидкість V", "A%d" % (chart_row + 38))
 
-ws_a.set_landscape()
-ws_a.set_paper(9)
-ws_a.fit_to_pages(1, 0)
-ws_a.activate()
+ws.set_landscape()
+ws.set_paper(9)
+ws.print_area(0, 0, chart_row + 57, 3)
+ws.fit_to_pages(1, 0)
+ws.activate()
+
+wn.set_column("A:A", 130)
+wn.write("A1", "Примітки до розрахунку", fm["title"])
+notes = [
+    ("Звідки значення", "Усі показники таблиці 7.4 обчислено формулами за стовпцями аркуша «Аналіз» (F:U). Значення цих стовпців скопійовано з "
+     "аркуша «CSV» (вихідний файл QGroundControl) без змін, номер рядка CSV вказано в стовпці F. Для кожного показника в таблиці 7.4 "
+     "є колонка «Джерело значення»."),
+    ("Яку колонку часу взято", "У CSV є кілька стовпців, пов'язаних із часом: Timestamp (час запису рядка, безперервний ряд із дробовою секундою), "
+     "flightTime (лічильник польоту QGroundControl у форматі год:хв:с, крок 1 с, скидається при кожному arm і зупиняється після disarm), "
+     "clock.currentTime і clock.currentUTCTime (годинник апарата), hobbs, timeToHome (оцінка часу повернення). Вісь часу на графіках "
+     "t = Timestamp − Timestamp першого рядка польоту; «Час польоту» у таблиці 7.4 взято зі стовпця flightTime."),
+    ("Як виділено політ", "CSV QGroundControl пишеться безперервно з моменту підключення, тому містить рядки до і після польоту. "
+     "Початок польоту – останнє скидання flightTime (початок останнього arm), кінець – рядок, у якому flightTime зупиняється після disarm. "
+     "Етапи визначено за даними: зліт – до досягнення 99 % заданої висоти, горизонтальний політ – поки groundSpeed ≥ 0,5 м/с на висоті не нижче "
+     "95 % заданої, посадка – від зупинки над ціллю до дотику."),
+    ("Повітряна швидкість", "ArduCopter без датчика швидкості повітря дає в airSpeed оцінку автопілота. У симуляції немає вітру, "
+     "тому вона майже збігається з groundSpeed."),
+    ("Режими і стан arm", "У CSV QGroundControl немає режиму польоту й стану arm. Ці показники взято з журналу .tlog: повідомлення HEARTBEAT "
+     "(custom_mode: 0 – Stabilize, 4 – Guided, 3 – Auto; base_mode, біт 128 – armed)."),
+    ("Швидкість у параметрі автопілота", "За методичкою WPNAV_SPEED = 100 · V (см/с). У ArduCopter V4.8.0-dev такого параметра немає, швидкість "
+     "місії задає WP_SPD у м/с, тому встановлено WP_SPD = V."),
+]
+for i, (head, text) in enumerate(notes):
+    wn.write(2 + i * 3, 0, head, fm["note_b"])
+    wn.write(3 + i * 3, 0, text, fm["note"])
+    wn.set_row(3 + i * 3, 15 * (len(text) // 125 + 1) + 3)
+
 wb.close()
 print("Збережено:", OUT)
-print("Рядки CSV польоту: %d-%d, рядків: %d" % (i0 + 2, i_last + 2, N))
+print("Рядки CSV польоту: %d-%d, рядків: %d, на аркуші %d-%d" % (i0 + 2, i_last + 2, N, FIRST, LAST))
