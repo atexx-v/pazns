@@ -10,6 +10,13 @@ import docx_style as s
 import sections_static as st
 
 SHOTS = os.path.join(ROOT, "results", "screenshots")
+ZOOM = os.path.join(ROOT, "results", "zoom")
+
+
+def shot(name):
+    zoomed = os.path.join(ZOOM, name[:-4] + "_zoom.png")
+    return zoomed if os.path.exists(zoomed) else os.path.join(SHOTS, name)
+
 PLOTS = os.path.join(ROOT, "results", "analysis")
 OUT = os.path.join(ROOT, "lab7_vishnevskiy_ir33.docx")
 
@@ -70,7 +77,7 @@ def build():
                  "найближчий до коміту тег (ArduPilot-4.6.0-beta1) і хеш коміту 665c0deeec, а сам автопілот у стартовому "
                  "повідомленні називає цю ж збірку ArduCopter V4.8.0-dev (665c0dee): тег і назва версії описують один і той самий коміт."
                  % (fig_no[0] + 1)))
-    figure(doc, "versions", os.path.join(SHOTS, "01_terminal_versions.png"), 15.5,
+    figure(doc, "versions", shot("01_terminal_versions.png"), 15.5,
            "Версії ОС, Gazebo Sim, ArduPilot, MAVProxy, pymavlink і QGroundControl за результатами команд у терміналі VM")
 
     s.subheading(doc, "2. Розгортання середовища (завдання 1)")
@@ -114,11 +121,13 @@ def build():
     s.text(doc, ("Файл sitl_lab7.parm потрібен через збірку arducopter з ROS 2: DDS у ній увімкнено, і без агента micro-ROS "
                  "процес завершується повідомленням «DDS: No ping response, exiting». Для роботи з MAVLink DDS не потрібен."))
     s.subheading(doc, "Перевірка: QGroundControl виявляє апарат")
+    s.text(doc, ("Скріншоти QGroundControl подано у два рівні: угорі повний кадр екрана, внизу збільшені фрагменти. На повному кадрі "
+                 "вони позначені червоними рамками з номерами та стрілками, номер біля рамки збігається з номером збільшеного фрагмента."))
     s.text(doc, ("Після запуску start_sim.sh і start_qgc.sh QGroundControl автоматично встановив з'єднання: у верхній панелі "
                  "з'явився стан «Ready», режим Stabilize, 10 супутників GPS, заряд батареї 100 %%, а на карті – апарат "
                  "на аеродромі CMAC (рис. %d). Підключення визначається за повідомленнями HEARTBEAT апарата "
                  "(тип 2 – квадрокоптер, автопілот 3 – ArduPilotMega)." % (fig_no[0] + 1)))
-    figure(doc, "connected", os.path.join(SHOTS, "02_qgc_connected.png"), 15.5,
+    figure(doc, "connected", shot("02_qgc_connected.png"), 16.5,
            "QGroundControl виявив апарат: стан «Ready», режим Stabilize, 10 супутників GPS")
 
     s.subheading(doc, "3. Налаштування QGroundControl і запису телеметрії (завдання 2)")
@@ -131,20 +140,20 @@ def build():
     s.bullet(doc, ("У блоці Logging перемикач «Save log after each flight» уже був увімкнений за замовчуванням, а «Save CSV log "
                    "of telemetry data» (запис усіх параметрів апарата в CSV з частотою 1 Гц під час польоту) вимкнений; "
                    "його увімкнено (рис. %d)." % (fig_no[0] + 2)))
-    figure(doc, "path", os.path.join(SHOTS, "03_settings_save_path.png"), 12.5,
+    figure(doc, "path", shot("03_settings_save_path.png"), 16.5,
            "Application Settings → General: Application Load/Save Path = /home/vishnevskiy/lab7/logs/qgc_data")
-    figure(doc, "logging", os.path.join(SHOTS, "04_settings_telemetry_logging.png"), 12.5,
+    figure(doc, "logging", shot("04_settings_telemetry_logging.png"), 16.5,
            "Application Settings → Telemetry → Logging: увімкнено Save log after each flight і Save CSV log")
     s.text(doc, ("Далі відкрито Analyze Tools → MAVLink Inspector. Усі потрібні повідомлення надходять від автопілота "
                  "з частотою близько 4 Гц (HEARTBEAT – 1 Гц): HEARTBEAT (рис. %d), GLOBAL_POSITION_INT (рис. %d), "
                  "ATTITUDE (у списку зліва) та SYS_STATUS (рис. %d). У списку також видно GPS_RAW_INT, VFR_HUD, "
                  "HOME_POSITION, MISSION_CURRENT та інші."
                  % (fig_no[0] + 1, fig_no[0] + 2, fig_no[0] + 3)))
-    figure(doc, "hb", os.path.join(SHOTS, "05a_inspector_heartbeat.png"), 15.5,
+    figure(doc, "hb", shot("05a_inspector_heartbeat.png"), 16.5,
            "MAVLink Inspector: HEARTBEAT (type = 2, autopilot = 3, custom_mode = 3, base_mode = 89)")
-    figure(doc, "gp", os.path.join(SHOTS, "05b_inspector_global_position.png"), 15.5,
+    figure(doc, "gp", shot("05b_inspector_global_position.png"), 16.5,
            "MAVLink Inspector: GLOBAL_POSITION_INT (після посадки lat = -353631166, lon = 1491639735)")
-    figure(doc, "ss", os.path.join(SHOTS, "05c_inspector_sys_status.png"), 15.5,
+    figure(doc, "ss", shot("05c_inspector_sys_status.png"), 16.5,
            "MAVLink Inspector: SYS_STATUS (voltage_battery = 12600 мВ, battery_remaining = 100 %)")
     s.text(doc, "Призначення основних повідомлень MAVLink, які надходять від автопілота, наведено в таблиці 4.")
     s.table(doc, st.MAVLINK_ROWS, [2600, 4600, 2438], caption="Таблиця 4 – Призначення MAVLink-повідомлень, що спостерігалися в Inspector")
@@ -157,9 +166,9 @@ def build():
                 "WP_RADIUS_M відповідають. Еквівалент заданого значення: 500 см/с = 5 м/с, тому встановлено "
                 "WP_SPD = 5.0 м/с (було 10.0 м/с). Значення змінено у Vehicle Setup → Parameters (рис. %d, %d) і підтверджено "
                 "незалежним читанням з автопілота." % (fig_no[0] + 1, fig_no[0] + 2))
-    figure(doc, "wp1", os.path.join(SHOTS, "06_param_wp_spd_edit.png"), 13.5,
+    figure(doc, "wp1", shot("06_param_wp_spd_edit.png"), 16.5,
            "Редагування параметра WP_SPD: введено значення 5 м/с")
-    figure(doc, "wp2", os.path.join(SHOTS, "07_param_wp_spd_saved.png"), 13.5,
+    figure(doc, "wp2", shot("07_param_wp_spd_saved.png"), 16.5,
            "Група WP після збереження: WP_SPD = 5.0 m/s")
 
     s.text(doc, ("План місії складається з трьох елементів (таблиця 5). План сформовано скриптом make_plan.py за параметрами "
@@ -172,9 +181,9 @@ def build():
         ["2", "Waypoint", "NAV_WAYPOINT (16)", "широта -35.3631166, довгота 149.1639735, висота 50 м"],
         ["3", "Land", "NAV_LAND (21)", "широта -35.3631166, довгота 149.1639735"],
     ], [600, 2100, 2500, 4438], caption="Таблиця 5 – Створений план місії (варіант 5)")
-    figure(doc, "plan", os.path.join(SHOTS, "08a_plan_overview.png"), 15.5,
-           "Вкладка Plan: план variant5 із елементами Takeoff, Waypoint, Land; довжина маршруту 115,7 м")
-    figure(doc, "planpos", os.path.join(SHOTS, "08_plan_waypoint_position.png"), 15.5,
+    figure(doc, "plan", shot("08a_plan_overview.png"), 16.5,
+           "Вкладка Plan: маршрут variant5 від точки старту до точки 2 (1), кнопки Open і Upload (2), список Mission Items із трьома елементами (3); довжина маршруту 115,7 м")
+    figure(doc, "planpos", shot("08_plan_waypoint_position.png"), 16.5,
            "Waypoint: Edit Position (Latitude -35.3631166, Longitude 149.1639735) і Altitude (Rel) 50.0 м")
     s.text(doc, ("План передано в ArduPilot кнопкою Upload. Незалежна перевірка запитом MISSION_REQUEST_LIST: автопілот зберігає "
                  "4 елементи – точку home (seq 0) і три елементи плану з координатами й висотою з таблиці 5."))
@@ -184,11 +193,11 @@ def build():
                  "виконав arm і перевів апарат у Auto, після чого автопілот виконував елементи плану: Takeoff, Waypoint "
                  "(«Reached command #2»), Land. Початок місії показано на рис. %d, завершення польоту – на рис. %d, "
                  "положення моделі в Gazebo після посадки – на рис. %d." % (fig_no[0] + 1, fig_no[0] + 2, fig_no[0] + 3)))
-    figure(doc, "start", os.path.join(SHOTS, "09_mission_start_takeoff.png"), 15.5,
+    figure(doc, "start", shot("09_mission_start_takeoff.png"), 16.5,
            "Початок місії: «Flying», режим Auto, набір висоти (9,2 м, 2,5 м/с), таймер польоту 00:00:07")
-    figure(doc, "end", os.path.join(SHOTS, "10_flight_end_landed.png"), 15.5,
+    figure(doc, "end", shot("10_flight_end_landed.png"), 16.5,
            "Завершення польоту: «Ready», апарат у цільовій точці, висота 0,0 м, час польоту 00:01:54, 115,7 м від точки старту")
-    figure(doc, "gz", os.path.join(SHOTS, "11_gazebo_drone_at_target.png"), 13.0,
+    figure(doc, "gz", shot("11_gazebo_drone_at_target.png"), 13.0,
            "Gazebo Sim: модель iris_with_ardupilot у цільовій точці після посадки")
 
     ev = T["transitions"]
@@ -213,7 +222,7 @@ def build():
                  "analyze_tlog.py показав, що в «2026-10-21 21-29-27.tlog» і «2026-10-21 22-14-45.tlog» апарат увесь час був "
                  "роздармований, а висота не перевищувала нуля. Файл «variant5.plan» у каталозі Missions – збережений план місії."
                  % (fig_no[0] + 1)))
-    figure(doc, "ls", os.path.join(SHOTS, "12_terminal_log_files.png"), 15.5,
+    figure(doc, "ls", shot("12_terminal_log_files.png"), 15.5,
            "Вміст каталогів Telemetry і Missions у налаштованому каталозі журналів QGroundControl (команда ls у терміналі VM)")
 
     s.subheading(doc, "5. Аналіз телеметрії (завдання 4)")
@@ -262,7 +271,7 @@ def build():
                  "цілі (lat = -353631166, lon = 1491639735), relative_alt = 13870 мм і vz = 150 см/с, тобто апарат знижується над "
                  "цільовою точкою зі швидкістю 1,5 м/с, що збігається із ділянкою посадки на графіку висоти. Вкладка Map для "
                  "журналу .tlog траєкторії не показала, тому траєкторію наведено за CSV (рис. %d)." % (fig_no[0] + 1, FIG["p_tr"])))
-    figure(doc, "replay", os.path.join(SHOTS, "14_logviewer_tlog_replay.png"), 15.5,
+    figure(doc, "replay", shot("14_logviewer_tlog_replay.png"), 16.5,
            "Log Viewer: відтворення «2026-10-21 21-50-01.tlog» на 13 хв 49 с, GLOBAL_POSITION_INT під час посадки")
 
     s.text(doc, "Порівняння заданих параметрів із фактичними даними наведено в таблиці 8.")

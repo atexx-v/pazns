@@ -88,6 +88,12 @@ Excel-версія аналізу (вихідний CSV, виділений по
 
 Результат: `lab7_analysis_vishnevskiy_ir33.xlsx`. Вісь часу в ньому за стовпцем `Timestamp`, «Час польоту» зі стовпця `flightTime`.
 
+Збільшені фрагменти скріншотів із червоними рамками й стрілками для звіту (`results/zoom/`):
+
+```bash
+/usr/bin/python3 tools/make_zooms.py
+```
+
 ## Відхилення від методички
 
 - `WPNAV_SPEED` у ArduCopter V4.8.0-dev немає, його замінює `WP_SPD` в м/с: `WPNAV_SPEED = 100 * V = 500 см/с`
