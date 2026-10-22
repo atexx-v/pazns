@@ -27,7 +27,7 @@ Ubuntu 22.04 aarch64, Gazebo Sim 8.15, ArduPilot SITL (ArduCopter), MAVProxy, QG
 ~/lab7/scripts/start_qgc.sh
 ```
 
-Опис, результати та звіт: `lab7/README.md`, `lab7/pazns_lab7_vishnevskiy_ir33.pdf`.
+Опис і результати: `lab7/README.md`.
 
 ## Лабораторна 9
 
