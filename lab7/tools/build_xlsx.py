@@ -212,16 +212,19 @@ rows74 = [
     ("Найбільша швидкість (наземна)", "=MAX(%s)" % R("J"), max(gs), "n1", "м/с", "groundSpeed"),
     ("Найбільша швидкість (повітряна)", "=MAX(%s)" % R("K"), max(asp), "n1", "м/с", "airSpeed (оцінка автопілота)"),
     ("Час польоту", "=ROUND(H%d*86400,0)" % LAST, final_f, "n0", "с", "flightTime (лічильник QGroundControl, останнє значення)"),
-    ("Початкова координата", '=TEXT(M%d,"0.0000000")&"; "&TEXT(N%d,"0.0000000")' % (FIRST, FIRST),
-     "%.7f; %.7f" % (lat[0], lon[0]), "txt_c", "°", "gps.lat, gps.lon (перший рядок польоту)"),
-    ("Кінцева координата", '=TEXT(M%d,"0.0000000")&"; "&TEXT(N%d,"0.0000000")' % (LAST, LAST),
-     "%.7f; %.7f" % (lat[-1], lon[-1]), "txt_c", "°", "gps.lat, gps.lon (останній рядок польоту)"),
+    ("Початкова координата", None,
+     "%.7f; %.7f" % (lat[0], lon[0]), "txt_c", "°", "gps.lat, gps.lon (перший рядок польоту, клітинки M5 і N5)"),
+    ("Кінцева координата", None,
+     "%.7f; %.7f" % (lat[-1], lon[-1]), "txt_c", "°", "gps.lat, gps.lon (останній рядок польоту, клітинки M%d і N%d)" % (LAST, LAST)),
     ("Максимальний roll", "=MAX(MAX(%s),-MIN(%s))" % (R("L"), R("L")), max(max(roll), -min(roll)), "n1", "град", "roll"),
 ]
 for i, (label, formula, val, nf, unit, source) in enumerate(rows74):
     r = 21 + i
     ws.write(r, 0, label, fm["label"])
-    ws.write_formula(r, 1, formula, fm[nf], val)
+    if formula is None:
+        ws.write_string(r, 1, val, fm[nf])
+    else:
+        ws.write_formula(r, 1, formula, fm[nf], val)
     ws.write(r, 2, unit, fm["txt_c"])
     ws.write(r, 3, source, fm["src"])
 r = 21 + len(rows74)
@@ -288,60 +291,17 @@ for k in range(N):
     ws.write_formula(row, 20, '=IF(R%d<=$B$15,"Зліт",IF(R%d<$B$16,"Перехід",IF(R%d<$B$17,"Горизонтальний політ","Посадка")))' % (n, n, n),
                      fm["d_t"], stage)
 
-ws.merge_range(2, 22, 2, 24, "Допоміжні лінії для діаграм", fm["section"])
-lines = [
-    ("Задана висота H", ("=0", 0), ("=B6", H), ("=B18", t_end), ("=B6", H)),
-    ("Задана швидкість V", ("=0", 0), ("=B7", V), ("=B18", t_end), ("=B7", V)),
-    ("Кінець зльоту (висота)", ("=B15", t_take), ("=0", 0), ("=B15", t_take), ("=B6*1.1", H * 1.1)),
-    ("Кінець горизонтального польоту (висота)", ("=B17", t_c1), ("=0", 0), ("=B17", t_c1), ("=B6*1.1", H * 1.1)),
-    ("Кінець зльоту (швидкість)", ("=B15", t_take), ("=0", 0), ("=B15", t_take), ("=B7*1.2", V * 1.2)),
-    ("Кінець горизонтального польоту (швидкість)", ("=B17", t_c1), ("=0", 0), ("=B17", t_c1), ("=B7*1.2", V * 1.2)),
-]
-for i, (label, p1x, p1y, p2x, p2y) in enumerate(lines):
-    r1 = FIRST - 1 + i * 2
-    ws.write(r1, 24, label, fm["plain"])
-    for k, (px, py) in enumerate([(p1x, p1y), (p2x, p2y)]):
-        ws.write_formula(r1 + k, 22, px[0], fm["d_1"], px[1])
-        ws.write_formula(r1 + k, 23, py[0], fm["d_1"], py[1])
-
-
-def line_ref(i):
-    r1 = FIRST + i * 2
-    return "='%s'!$W$%d:$W$%d" % (SHEET, r1, r1 + 1), "='%s'!$X$%d:$X$%d" % (SHEET, r1, r1 + 1)
-
-
-def chart(title, ycol, ylabel, set_idx, bound_idx, color, line_label, cell):
-    ch = wb.add_chart({"type": "scatter", "subtype": "straight_with_markers"})
-    ch.add_series({
-        "name": title,
-        "categories": "='%s'!$R$%d:$R$%d" % (SHEET, FIRST, LAST),
-        "values": "='%s'!$%s$%d:$%s$%d" % (SHEET, ycol, FIRST, ycol, LAST),
-        "line": {"color": color, "width": 2.0},
-        "marker": {"type": "circle", "size": 4, "fill": {"color": color}, "border": {"color": color}},
-    })
-    x, y = line_ref(set_idx)
-    ch.add_series({"name": line_label, "categories": x, "values": y,
-                   "line": {"color": "#555555", "width": 1.25, "dash_type": "dash"}, "marker": {"type": "none"}})
-    for idx, label in zip(bound_idx, ["Кінець зльоту", "Кінець горизонтального польоту"]):
-        x, y = line_ref(idx)
-        ch.add_series({"name": label, "categories": x, "values": y,
-                       "line": {"color": "#9e9e9e", "width": 1.0, "dash_type": "round_dot"}, "marker": {"type": "none"}})
-    ch.set_title({"name": title + " від часу", "name_font": {"name": "Arial", "size": 12}})
-    ch.set_x_axis({"name": "Час від початку польоту, с", "min": 0, "max": math.ceil(t_end),
-                   "major_gridlines": {"visible": True, "line": {"color": "#dddddd"}}})
-    ch.set_y_axis({"name": ylabel, "min": 0, "major_gridlines": {"visible": True, "line": {"color": "#dddddd"}}})
-    ch.set_legend({"position": "bottom"})
-    ch.set_size({"width": 780, "height": 340})
-    ws.insert_chart(cell, ch)
-
-
-chart("Висота", "I", "Висота відносно точки старту, м", 0, (2, 3), "#1f5fa8", "Задана висота H", "A%d" % chart_row)
-chart("Повітряна швидкість", "K", "Повітряна швидкість, м/с", 1, (4, 5), "#b3472d", "Задана швидкість V", "A%d" % (chart_row + 19))
-chart("Наземна швидкість", "J", "Наземна швидкість, м/с", 1, (4, 5), "#2e7d32", "Задана швидкість V", "A%d" % (chart_row + 38))
+PLOTS = os.path.join(ROOT, "results", "analysis")
+for i, (png, title) in enumerate([("plot_altitude.png", "Висота від часу"),
+                                  ("plot_airspeed.png", "Повітряна швидкість від часу"),
+                                  ("plot_groundspeed.png", "Наземна швидкість від часу")]):
+    top = chart_row + i * 19
+    ws.write(top - 1, 0, title, fm["section"])
+    ws.insert_image(top, 0, os.path.join(PLOTS, png), {"x_scale": 0.95, "y_scale": 0.95, "object_position": 2})
 
 ws.set_landscape()
 ws.set_paper(9)
-ws.print_area(0, 0, chart_row + 57, 3)
+ws.print_area(0, 0, chart_row + 58, 3)
 ws.fit_to_pages(1, 0)
 ws.activate()
 

@@ -80,7 +80,7 @@ python3 tools/analyze_tlog.py "<файл>.tlog" results/telemetry/tlog_summary.j
 `analyze_tlog.py` запускається у VM (потрібен pymavlink). CSV QGC не містить режиму польоту й стану arm, їх беруть з
 `.tlog`.
 
-Excel-версія аналізу (вихідний CSV, виділений політ, таблиця 7.4 формулами з колонкою «джерело значення», три діаграми):
+Excel-версія аналізу (вихідний CSV, виділений політ, таблиця 7.4 формулами з колонкою «джерело значення», три графіки (картинки)):
 
 ```bash
 /usr/bin/python3 tools/build_xlsx.py
