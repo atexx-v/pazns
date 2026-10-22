@@ -1,8 +1,0 @@
-1.0 c: режим=Auto armed=True
-26.0 c: AP: Reached command #2
-26.0 c: AP: Mission: 3 Land
-56.2 c: AP: PrecLand: Failsafe Measures
-86.4 c: AP: Disarming motors
-86.4 c: AP: Mission: 1 Takeoff
-87.4 c: режим=Auto armed=False
-Запис завершено: /home/vishnevskiy/lab7/logs/xcheck_flight.csv
