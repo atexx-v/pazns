@@ -62,6 +62,7 @@ SCRIPTS_ROWS = [
     ["tools/mav_recorder.py", "Незалежний запис MAVLink (10 Гц) для перехресної перевірки CSV."],
     ["tools/analyze_tlog.py", "Розбір .tlog: режими, arm/disarm, службові повідомлення, максимуми."],
     ["tools/analyze_csv.py", "Рахує показники таблиці 7.4 за CSV QGroundControl і будує графіки."],
+    ["tools/build_xlsx.py", "Збирає Excel-файл: вихідний CSV, виділений політ, таблиця 7.4 формулами, діаграми."],
 ]
 
 MAVLINK_ROWS = [

@@ -80,6 +80,14 @@ python3 tools/analyze_tlog.py "<файл>.tlog" results/telemetry/tlog_summary.j
 `analyze_tlog.py` запускається у VM (потрібен pymavlink). CSV QGC не містить режиму польоту й стану arm, їх беруть з
 `.tlog`.
 
+Excel-версія аналізу (вихідний CSV, виділений політ, таблиця 7.4 формулами з колонкою «джерело значення», три діаграми):
+
+```bash
+/usr/bin/python3 tools/build_xlsx.py
+```
+
+Результат: `lab7_analysis_vishnevskiy_ir33.xlsx`. Вісь часу в ньому за стовпцем `Timestamp`, «Час польоту» зі стовпця `flightTime`.
+
 ## Відхилення від методички
 
 - `WPNAV_SPEED` у ArduCopter V4.8.0-dev немає, його замінює `WP_SPD` в м/с: `WPNAV_SPEED = 100 * V = 500 см/с`
