@@ -31,11 +31,10 @@ FIGURES = {
 }
 
 
-def badge(draw, cx, cy, number, font):
-    r = 19
+def badge(draw, cx, cy, number, font, r=19):
     draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=RED, outline=WHITE, width=3)
     w = draw.textlength(str(number), font=font)
-    draw.text((cx - w / 2, cy - 15), str(number), font=font, fill=WHITE)
+    draw.text((cx - w / 2, cy - r * 0.8), str(number), font=font, fill=WHITE)
 
 
 def arrow(draw, start, tip, width=14, head_len=46, head_w=42):
@@ -61,8 +60,8 @@ def arrow(draw, start, tip, width=14, head_len=46, head_w=42):
 def arrow_for(box, size, side=None):
     x0, y0, x1, y1 = box[:4]
     w, h = size
-    reach = 150
-    off = 10
+    reach = 190
+    off = 8
     if side == "R":
         tip = (x1 + off, (y0 + y1) / 2)
         return (min(tip[0] + reach, w - 8), tip[1]), tip
@@ -88,36 +87,37 @@ def arrow_for(box, size, side=None):
 def compose(name, boxes):
     src = Image.open(os.path.join(SRC, name + ".png")).convert("RGB")
     w, h = src.size
-    n = len(boxes)
-    gap = 40
-    panel_w = (w - gap * (n - 1)) / n
+    total_w = 1640
+    ow = int(total_w * 0.58)
+    k = ow / w
+    oh = int(h * k)
+    overview = src.resize((ow, oh), Image.LANCZOS)
+    col_x = PAD + ow + 24
+    col_w = total_w - col_x - PAD // 2
     zooms = []
     for box in boxes:
         bw, bh = box[2] - box[0], box[3] - box[1]
-        z = min(MAX_ZOOM, panel_w / bw, MAX_H / bh)
-        crop = src.crop(box[:4]).resize((int(bw * z), int(bh * z)), Image.LANCZOS)
-        zooms.append(crop)
-    zoom_h = max(c.size[1] for c in zooms)
-    canvas = Image.new("RGB", (w + 2 * PAD, PAD + h + GAP + zoom_h + 2 * PAD), WHITE)
-    canvas.paste(src, (PAD, PAD))
+        z = min(MAX_ZOOM, col_w / bw, (oh * 1.2 - 16 * (len(boxes) - 1)) / len(boxes) / bh)
+        zooms.append(src.crop(box[:4]).resize((max(1, int(bw * z)), max(1, int(bh * z))), Image.LANCZOS))
+    stack_h = sum(c.size[1] for c in zooms) + 16 * (len(zooms) - 1)
+    canvas = Image.new("RGB", (total_w, max(oh, stack_h) + 2 * PAD), WHITE)
+    canvas.paste(overview, (PAD, PAD))
     draw = ImageDraw.Draw(canvas)
-    font = ImageFont.truetype(FONT, 26)
+    font = ImageFont.truetype(FONT, 22)
     for i, box in enumerate(boxes, 1):
-        rect = (box[0] + PAD - 4, box[1] + PAD - 4, box[2] + PAD + 4, box[3] + PAD + 4)
-        draw.rectangle(rect, outline=RED, width=4)
+        rect = [box[0] * k + PAD - 2, box[1] * k + PAD - 2, box[2] * k + PAD + 2, box[3] * k + PAD + 2]
+        draw.rectangle(rect, outline=RED, width=3)
         start, tip = arrow_for(box, (w, h), box[4] if len(box) > 4 else None)
-        arrow(draw, (start[0] + PAD, start[1] + PAD), (tip[0] + PAD, tip[1] + PAD))
-        bx = max(rect[0] - 4, PAD + 20)
-        by = max(rect[1] - 4, PAD + 20)
-        badge(draw, bx, by, i, font)
-    x = PAD
-    y = PAD + h + GAP
+        arrow(draw, (start[0] * k + PAD, start[1] * k + PAD), (tip[0] * k + PAD, tip[1] * k + PAD),
+              width=9, head_len=30, head_w=28)
+        badge(draw, max(rect[0], PAD + 14), max(rect[1], PAD + 14), i, font, 14)
+    y = PAD
     for i, crop in enumerate(zooms, 1):
         zw, zh = crop.size
-        draw.rectangle((x - 4, y - 4, x + zw + 4, y + zh + 4), outline=RED, width=4)
-        canvas.paste(crop, (x, y))
-        badge(draw, x + 4, y + 4, i, font)
-        x += int(panel_w + gap)
+        draw.rectangle((col_x - 3, y - 3, col_x + zw + 3, y + zh + 3), outline=RED, width=3)
+        canvas.paste(crop, (col_x, y))
+        badge(draw, col_x + 3, y + 3, i, font, 14)
+        y += zh + 16
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, name + "_zoom.png")
     canvas.save(path, optimize=True)
