@@ -8,8 +8,6 @@
 | `lab7/` | №7 | MAVLink і телеметрія: ArduPilot SITL, Gazebo і QGroundControl, автоматична місія, аналіз `.tlog` і `.csv` |
 | `lab9/` | №9 | Проєктування і 3D-друк кріплення VTX AKK Ultra Long Range 3W для рами GEPRC Mark4 10″ в Autodesk Fusion |
 
-У кожній папці з кодом свій `README.md` або скрипти запуску (`scripts/`).
-
 ## Лабораторна 2
 
 Ubuntu 22.04, ROS 2 Humble, Gazebo Harmonic, ArduPilot SITL. Варіант 5: Δx = 7.0, Δy = −0.1. Похибка перед посадкою 0.11 м.
